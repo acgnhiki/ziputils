@@ -1,71 +1,54 @@
 /*
-   Copyright 2011 Martin Matula (martin@alutam.com)
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+ *  Copyright 2011 Martin Matula (martin@alutam.com)
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  */
 
 package com.alutam.ziputils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import static com.alutam.ziputils.ZipUtil.*;
 
 public class ZipDecryptInputStream extends InputStream {
-    private static final int[] CRC_TABLE = new int[256];
-    // compute the table
-    // (could also have it pre-computed - see http://snippets.dzone.com/tag/crc32)
-    static {
-        for (int i = 0; i < 256; i++) {
-            int r = i;
-            for (int j = 0; j < 8; j++) {
-                if ((r & 1) == 1) {
-                    r = (r >>> 1) ^ 0xedb88320;
-                } else {
-                    r >>>= 1;
-                }
-            }
-            CRC_TABLE[i] = r;
-        }
-    }
-
-    private static final int DECRYPT_HEADER_SIZE = 12;
-    private static final int[] LFH_SIGNATURE = {0x50, 0x4b, 0x03, 0x04};
-
     private final InputStream delegate;
-    private final String password;
     private final int keys[] = new int[3];
-    private final byte lfh[] = new byte[30];
+    private final int pwdKeys[] = new int[3];
 
-    private int headRemaining = 30;
-    private int dataRemaining = -1;
+    private State state = State.SIGNATURE;
+    private int skipBytes;
+    private int compressedSize;
+    private int value;
+    private int valuePos;
+    private int valueInc;
+    private int crc;
 
     public ZipDecryptInputStream(InputStream stream, String password) {
+        this(stream, password.toCharArray());
+    }
+
+    public ZipDecryptInputStream(InputStream stream, char[] password) {
         this.delegate = stream;
-        this.password = password;
+        pwdKeys[0] = 305419896;
+        pwdKeys[1] = 591751049;
+        pwdKeys[2] = 878082192;
+        for (int i = 0; i < password.length; i++) {
+            ZipUtil.updateKeys((byte) (password[i] & 0xff), pwdKeys);
+        }
     }
 
     @Override
     public int read() throws IOException {
-        if (headRemaining > 0) {
-            headRemaining--;
-            if (headRemaining == 29) {
-                delegate.read(lfh);
-                return lfh[0];
-            } else {
-                return lfh[29 - headRemaining];
-            }
-        } else {
-
-        }
         int result = delegate.read();
         if (skipBytes == 0) {
             switch (state) {
@@ -94,8 +77,12 @@ public class ZipDecryptInputStream extends InputStream {
                     compressedSize = 0;
                     valuePos = 0;
                     valueInc = DECRYPT_HEADER_SIZE;
+                    state = State.CRC;
+                    skipBytes = 10;
+                    break;
+                case CRC:
+                    crc = result;
                     state = State.COMPRESSED_SIZE;
-                    skipBytes = 11;
                     break;
                 case COMPRESSED_SIZE:
                     compressedSize += result << (8 * valuePos);
@@ -130,10 +117,15 @@ public class ZipDecryptInputStream extends InputStream {
                     }
                     break;
                 case HEADER:
-                    initKeys(password);
+                    initKeys();
+                    byte lastValue = 0;
                     for (int i = 0; i < DECRYPT_HEADER_SIZE; i++) {
-                        updateKeys((byte) (result ^ decryptByte()));
+                        lastValue = (byte) (result ^ decryptByte());
+                        updateKeys(lastValue);
                         result = delegate.read();
+                    }
+                    if ((lastValue & 0xff) != crc) {
+                        throw new IllegalStateException("Wrong password!");
                     }
                     compressedSize -= DECRYPT_HEADER_SIZE;
                     state = State.DATA;
@@ -162,32 +154,16 @@ public class ZipDecryptInputStream extends InputStream {
         super.close();
     }
 
-    private void initKeys(String password) {
-        keys[0] = 305419896;
-        keys[1] = 591751049;
-        keys[2] = 878082192;
-        for (int i = 0; i < password.length(); i++) {
-            updateKeys((byte) (password.charAt(i) & 0xff));
-        }
+    private void initKeys() {
+        System.arraycopy(pwdKeys, 0, keys, 0, keys.length);
     }
 
     private void updateKeys(byte charAt) {
-        keys[0] = crc32(keys[0], charAt);
-        keys[1] += keys[0] & 0xff;
-        keys[1] = keys[1] * 134775813 + 1;
-        keys[2] = crc32(keys[2], (byte) (keys[1] >> 24));
+        ZipUtil.updateKeys(charAt, keys);
     }
 
     private byte decryptByte() {
         int temp = keys[2] | 2;
         return (byte) ((temp * (temp ^ 1)) >>> 8);
-    }
-
-    private int crc32(int oldCrc, byte charAt) {
-        return ((oldCrc >>> 8) ^ CRC_TABLE[(oldCrc ^ charAt) & 0xff]);
-    }
-
-    private static enum State {
-        SIGNATURE, FLAGS, COMPRESSED_SIZE, FN_LENGTH, EF_LENGTH, HEADER, DATA, TAIL
     }
 }
