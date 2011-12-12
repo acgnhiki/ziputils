@@ -39,7 +39,9 @@ class ZipUtil {
     }
 
     static final int DECRYPT_HEADER_SIZE = 12;
+    static final int[] CFH_SIGNATURE = {0x50, 0x4b, 0x01, 0x02};
     static final int[] LFH_SIGNATURE = {0x50, 0x4b, 0x03, 0x04};
+    static final int[] ECD_SIGNATURE = {0x50, 0x4b, 0x05, 0x06};
     static final int[] DD_SIGNATURE = {0x50, 0x4b, 0x07, 0x08};
 
     static void updateKeys(byte charAt, int[] keys) {
@@ -55,5 +57,9 @@ class ZipUtil {
 
     static enum State {
         SIGNATURE, FLAGS, COMPRESSED_SIZE, FN_LENGTH, EF_LENGTH, HEADER, DATA, TAIL, CRC
+    }
+
+    static enum Section {
+        FILE_HEADER, FILE_DATA, DATA_DESCRIPTOR
     }
 }

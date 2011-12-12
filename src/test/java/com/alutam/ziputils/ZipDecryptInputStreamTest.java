@@ -32,7 +32,7 @@ public class ZipDecryptInputStreamTest {
      */
     @Test
     public void testRead() throws Exception {
-        ZipDecryptInputStream zdis = new ZipDecryptInputStream(getClass().getResourceAsStream("/test.zip"), "password");
+        ZipDecryptInputStream zdis = new ZipDecryptInputStream(getClass().getResourceAsStream("/test1.zip"), "password");
         ZipInputStream zis = new ZipInputStream(zdis);
 
         ZipEntry ze;

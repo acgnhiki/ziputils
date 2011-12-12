@@ -26,11 +26,9 @@ public class ZipDecryptInputStream extends InputStream {
     private final int pwdKeys[] = new int[3];
 
     private State state = State.SIGNATURE;
+    private Section section;
     private int skipBytes;
     private int compressedSize;
-    private int value;
-    private int valuePos;
-    private int valueInc;
     private int crc;
 
     public ZipDecryptInputStream(InputStream stream, String password) {
@@ -49,18 +47,16 @@ public class ZipDecryptInputStream extends InputStream {
 
     @Override
     public int read() throws IOException {
-        int result = delegate.read();
+        int result = delegateRead();
         if (skipBytes == 0) {
             switch (state) {
                 case SIGNATURE:
-                    if (result != LFH_SIGNATURE[valuePos]) {
+                    if (!peekAheadEquals(LFH_SIGNATURE)) {
                         state = State.TAIL;
                     } else {
-                        valuePos++;
-                        if (valuePos >= LFH_SIGNATURE.length) {
-                            skipBytes = 2;
-                            state = State.FLAGS;
-                        }
+                        section = Section.FILE_HEADER;
+                        skipBytes = 5;
+                        state = State.FLAGS;
                     }
                     break;
                 case FLAGS:
@@ -71,72 +67,76 @@ public class ZipDecryptInputStream extends InputStream {
                         throw new IllegalStateException("Strong encryption used.");
                     }
                     if ((result & 8) == 8) {
-                        throw new IllegalStateException("Unsupported ZIP format.");
+                        compressedSize = -1;
+                        state = State.FN_LENGTH;
+                        skipBytes = 19;
+                    } else {
+                        state = State.CRC;
+                        skipBytes = 10;
                     }
                     result -= 1;
-                    compressedSize = 0;
-                    valuePos = 0;
-                    valueInc = DECRYPT_HEADER_SIZE;
-                    state = State.CRC;
-                    skipBytes = 10;
                     break;
                 case CRC:
                     crc = result;
                     state = State.COMPRESSED_SIZE;
                     break;
                 case COMPRESSED_SIZE:
-                    compressedSize += result << (8 * valuePos);
-                    result -= valueInc;
-                    if (result < 0) {
-                        valueInc = 1;
-                        result += 256;
+                    int[] values = new int[4];
+                    peekAhead(values);
+                    compressedSize = 0;
+                    int valueInc = DECRYPT_HEADER_SIZE;
+                    for (int i = 0; i < 4; i++) {
+                        compressedSize += values[i] << (8 * i);
+                        values[i] -= valueInc;
+                        if (values[i] < 0) {
+                            valueInc = 1;
+                            values[i] += 256;
+                        } else {
+                            valueInc = 0;
+                        }
+                    }
+                    overrideBuffer(values);
+                    result = values[0];
+                    if (section == Section.DATA_DESCRIPTOR) {
+                        state = State.SIGNATURE;
                     } else {
-                        valueInc = 0;
-                    }
-                    valuePos++;
-                    if (valuePos > 3) {
-                        valuePos = 0;
-                        value = 0;
                         state = State.FN_LENGTH;
-                        skipBytes = 4;
                     }
+                    skipBytes = 7;
                     break;
                 case FN_LENGTH:
-                case EF_LENGTH:
-                    value += result << 8 * valuePos;
-                    if (valuePos == 1) {
-                        valuePos = 0;
-                        if (state == State.FN_LENGTH) {
-                            state = State.EF_LENGTH;
-                        } else {
-                            state = State.HEADER;
-                            skipBytes = value;
-                        }
-                    } else {
-                        valuePos = 1;
-                    }
+                    values = new int[4];
+                    peekAhead(values);
+                    skipBytes = 3 + values[0] + values[2] + (values[1] + values[3]) * 256;
+                    state = State.HEADER;
                     break;
                 case HEADER:
+                    section = Section.FILE_DATA;
                     initKeys();
                     byte lastValue = 0;
                     for (int i = 0; i < DECRYPT_HEADER_SIZE; i++) {
                         lastValue = (byte) (result ^ decryptByte());
                         updateKeys(lastValue);
-                        result = delegate.read();
+                        result = delegateRead();
                     }
                     if ((lastValue & 0xff) != crc) {
-                        throw new IllegalStateException("Wrong password!");
+//                        throw new IllegalStateException("Wrong password!");
                     }
                     compressedSize -= DECRYPT_HEADER_SIZE;
                     state = State.DATA;
                     // intentionally no break
                 case DATA:
-                    result = (result ^ decryptByte()) & 0xff;
-                    updateKeys((byte) result);
-                    compressedSize--;
-                    if (compressedSize == 0) {
-                        valuePos = 0;
-                        state = State.SIGNATURE;
+                    if (compressedSize == -1 && peekAheadEquals(DD_SIGNATURE)) {
+                        section = Section.DATA_DESCRIPTOR;
+                        skipBytes = 5;
+                        state = State.CRC;
+                    } else {
+                        result = (result ^ decryptByte()) & 0xff;
+                        updateKeys((byte) result);
+                        compressedSize--;
+                        if (compressedSize == 0) {
+                            state = State.SIGNATURE;
+                        }
                     }
                     break;
                 case TAIL:
@@ -146,6 +146,56 @@ public class ZipDecryptInputStream extends InputStream {
             skipBytes--;
         }
         return result;
+    }
+
+    private static final int BUF_SIZE = 8;
+    private int bufOffset = BUF_SIZE;
+    private final int[] buf = new int[BUF_SIZE];
+
+    private int delegateRead() throws IOException {
+        bufOffset++;
+        if (bufOffset >= BUF_SIZE) {
+            fetchData(0);
+            bufOffset = 0;
+        }
+        return buf[bufOffset];
+    }
+
+    private boolean peekAheadEquals(int[] values) throws IOException {
+        prepareBuffer(values);
+        for (int i = 0; i < values.length; i++) {
+            if (buf[bufOffset + i] != values[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void prepareBuffer(int[] values) throws IOException {
+        if (values.length > (BUF_SIZE - bufOffset)) {
+            buf[0] = buf[bufOffset];
+            fetchData(1);
+            bufOffset = 0;
+        }
+    }
+
+    private void peekAhead(int[] values) throws IOException {
+        prepareBuffer(values);
+        System.arraycopy(buf, bufOffset, values, 0, values.length);
+    }
+
+    private void overrideBuffer(int[] values) throws IOException {
+        prepareBuffer(values);
+        System.arraycopy(values, 0, buf, bufOffset, values.length);
+    }
+
+    private void fetchData(int offset) throws IOException {
+        for (int i = offset; i < BUF_SIZE; i++) {
+            buf[i] = delegate.read();
+            if (buf[i] == -1) {
+                break;
+            }
+        }
     }
 
     @Override
