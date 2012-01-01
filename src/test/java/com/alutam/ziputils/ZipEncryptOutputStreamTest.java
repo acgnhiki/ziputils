@@ -36,7 +36,7 @@ public class ZipEncryptOutputStreamTest {
         ZipEncryptOutputStream zeos = new ZipEncryptOutputStream(new FileOutputStream("test.zip"), "password");
         ZipOutputStream zos = new ZipOutputStream(zeos);
 
-        for (int i = 1; i < 4; i++) {
+        for (int i = 1; i < 3; i++) {
             ZipEntry ze = new ZipEntry("test" + i + ".txt");
             zos.putNextEntry(ze);
             InputStream is = getClass().getResourceAsStream("/" + ze.getName());

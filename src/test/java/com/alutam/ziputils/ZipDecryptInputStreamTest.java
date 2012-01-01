@@ -32,7 +32,7 @@ public class ZipDecryptInputStreamTest {
      */
     @Test
     public void testRead() throws Exception {
-        testRead(getClass().getResourceAsStream("/test.zip"));
+        testRead(getClass().getResourceAsStream("/test1.zip"));
     }
 
     static void testRead(InputStream input) throws Exception {
