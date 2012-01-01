@@ -16,6 +16,7 @@
 
 package com.alutam.ziputils;
 
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.util.zip.ZipOutputStream;
 import java.io.InputStream;
@@ -35,29 +36,18 @@ public class ZipEncryptOutputStreamTest {
         ZipEncryptOutputStream zeos = new ZipEncryptOutputStream(new FileOutputStream("test.zip"), "password");
         ZipOutputStream zos = new ZipOutputStream(zeos);
 
-        ZipEntry ze = new ZipEntry("test1.txt");
-        zos.putNextEntry(ze);
-        InputStream is = getClass().getResourceAsStream("/" + ze.getName());
-        int b;
-        while ((b = is.read()) != -1) {
-            zos.write(b);
+        for (int i = 1; i < 4; i++) {
+            ZipEntry ze = new ZipEntry("test" + i + ".txt");
+            zos.putNextEntry(ze);
+            InputStream is = getClass().getResourceAsStream("/" + ze.getName());
+            int b;
+            while ((b = is.read()) != -1) {
+                zos.write(b);
+            }
+            zos.closeEntry();
         }
-        zos.closeEntry();
         zos.close();
-    }
 
-    @Test
-    public void testUEWrite() throws Exception {
-        ZipOutputStream zos = new ZipOutputStream(new FileOutputStream("uetest.zip"));
-
-        ZipEntry ze = new ZipEntry("test1.txt");
-        zos.putNextEntry(ze);
-        InputStream is = getClass().getResourceAsStream("/" + ze.getName());
-        int b;
-        while ((b = is.read()) != -1) {
-            zos.write(b);
-        }
-        zos.closeEntry();
-        zos.close();
+        ZipDecryptInputStreamTest.testRead(new FileInputStream("test.zip"));
     }
 }

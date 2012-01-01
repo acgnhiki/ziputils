@@ -32,12 +32,16 @@ public class ZipDecryptInputStreamTest {
      */
     @Test
     public void testRead() throws Exception {
-        ZipDecryptInputStream zdis = new ZipDecryptInputStream(getClass().getResourceAsStream("/test.zip"), "password");
+        testRead(getClass().getResourceAsStream("/test.zip"));
+    }
+
+    static void testRead(InputStream input) throws Exception {
+        ZipDecryptInputStream zdis = new ZipDecryptInputStream(input, "password");
         ZipInputStream zis = new ZipInputStream(zdis);
 
         ZipEntry ze;
         while ((ze = zis.getNextEntry()) != null) {
-            InputStream is2 = getClass().getResourceAsStream("/" + ze.getName());
+            InputStream is2 = ZipDecryptInputStreamTest.class.getResourceAsStream("/" + ze.getName());
             int a, b;
             do {
                 a = is2.read();
