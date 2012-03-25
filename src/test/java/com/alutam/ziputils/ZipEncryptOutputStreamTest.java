@@ -1,5 +1,5 @@
 /*
- *  Copyright 2011 Martin Matula (martin@alutam.com)
+ *  Copyright 2011, 2012 Martin Matula (martin@alutam.com)
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,14 +18,14 @@ package com.alutam.ziputils;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.util.zip.ZipOutputStream;
 import java.io.InputStream;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import org.junit.Test;
 
 /**
  *
- * @author martin
+ * @author Martin Matula (martin at alutam.com)
  */
 public class ZipEncryptOutputStreamTest {
     /**
@@ -33,6 +33,20 @@ public class ZipEncryptOutputStreamTest {
      */
     @Test
     public void testWrite() throws Exception {
+//        ZipOutputStream zosp = new ZipOutputStream(new FileOutputStream("test-plain.zip"));
+//
+//        for (int i = 1; i < 3; i++) {
+//            ZipEntry ze = new ZipEntry("test" + i + ".txt");
+//            zosp.putNextEntry(ze);
+//            InputStream is = getClass().getResourceAsStream("/" + ze.getName());
+//            int b;
+//            while ((b = is.read()) != -1) {
+//                zosp.write(b);
+//            }
+//            zosp.closeEntry();
+//        }
+//        zosp.close();
+
         ZipEncryptOutputStream zeos = new ZipEncryptOutputStream(new FileOutputStream("test.zip"), "password");
         ZipOutputStream zos = new ZipOutputStream(zeos);
 

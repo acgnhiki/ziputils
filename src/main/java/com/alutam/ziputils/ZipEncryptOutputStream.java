@@ -1,5 +1,5 @@
 /*
- *  Copyright 2011 Martin Matula (martin@alutam.com)
+ *  Copyright 2011, 2012 Martin Matula (martin@alutam.com)
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,16 +16,16 @@
 
 package com.alutam.ziputils;
 
-import java.util.ArrayList;
-import java.security.SecureRandom;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Arrays;
 import static com.alutam.ziputils.ZipUtil.*;
 
 /**
  *
- * @author martin
+ * @author Martin Matula (martin at alutam.com)
  */
 public class ZipEncryptOutputStream extends OutputStream {
     private final OutputStream delegate;
@@ -120,6 +120,7 @@ public class ZipEncryptOutputStream extends OutputStream {
                     return;
                 case FILE_HEADER_OFFSET:
                     writeAsBytes(localHeaderOffset.get(fileIndex));
+                    fileIndex++;
                     skipBytes = 3;
                     copyBytesUntil(State.SECTION_HEADER, CFH_SIGNATURE, ECD_SIGNATURE);
                     return;
@@ -354,6 +355,7 @@ public class ZipEncryptOutputStream extends OutputStream {
     private void bufferUntil(State state, int[]... condition) {
         copyBytesUntil(state, condition);
         fileData = new ArrayList<int[]>();
+        fileSize = 0;
         this.state = State.BUFFER_UNTIL;
     }
 

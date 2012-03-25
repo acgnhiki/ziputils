@@ -1,5 +1,5 @@
 /*
- *  Copyright 2011 Martin Matula (martin@alutam.com)
+ *  Copyright 2011, 2012 Martin Matula (martin@alutam.com)
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package com.alutam.ziputils;
 
 /**
  *
- * @author martin
+ * @author Martin Matula (martin at alutam.com)
  */
 class ZipUtil {
     static final int[] CRC_TABLE = new int[256];

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2011 Martin Matula (martin@alutam.com)
+ *  Copyright 2011, 2012 Martin Matula (martin@alutam.com)
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import static org.junit.Assert.*;
 
 /**
  *
- * @author martin
+ * @author Martin Matula (martin at alutam.com)
  */
 public class ZipDecryptInputStreamTest {
     /**
@@ -42,11 +42,12 @@ public class ZipDecryptInputStreamTest {
         ZipEntry ze;
         while ((ze = zis.getNextEntry()) != null) {
             InputStream is2 = ZipDecryptInputStreamTest.class.getResourceAsStream("/" + ze.getName());
-            int a, b;
+            int a, b, index = 0;
             do {
                 a = is2.read();
                 b = zis.read();
-                assertEquals("Files differ.", a, b);
+                assertEquals("Files " + ze.getName() + " differ at offset " + index, a, b);
+                index++;
             } while (b != -1);
             is2.close();
             zis.closeEntry();

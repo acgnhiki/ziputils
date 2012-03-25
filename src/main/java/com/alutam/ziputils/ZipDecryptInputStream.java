@@ -1,5 +1,5 @@
 /*
- *  Copyright 2011 Martin Matula (martin@alutam.com)
+ *  Copyright 2011, 2012 Martin Matula (martin@alutam.com)
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,6 +20,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import static com.alutam.ziputils.ZipUtil.*;
 
+/**
+ *
+ * @author Martin Matula (martin at alutam.com)
+ */
 public class ZipDecryptInputStream extends InputStream {
     private final InputStream delegate;
     private final int keys[] = new int[3];
@@ -173,8 +177,10 @@ public class ZipDecryptInputStream extends InputStream {
 
     private void prepareBuffer(int[] values) throws IOException {
         if (values.length > (BUF_SIZE - bufOffset)) {
-            buf[0] = buf[bufOffset];
-            fetchData(1);
+            for (int i = bufOffset; i < BUF_SIZE; i++) {
+                buf[i - bufOffset] = buf[i];
+            }
+            fetchData(BUF_SIZE - bufOffset);
             bufOffset = 0;
         }
     }
