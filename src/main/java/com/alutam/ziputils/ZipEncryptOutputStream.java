@@ -24,6 +24,29 @@ import java.util.Arrays;
 import static com.alutam.ziputils.ZipUtil.*;
 
 /**
+ * Output stream that can be used to password-protect zip files.
+ *
+ * <h3>Example usage:</h3>
+ * <p>Creating a password-protected zip file:</p>
+ * <pre>
+ *  ZipEncryptOutputStream zeos = new ZipEncryptOutputStream(new FileOutputStream(fileName), password);
+ *  ZipOutputStream zos = new ZipOuputStream(zdis);
+ *  ... create zip file using the standard JDK ZipOutputStream in zos variable ...
+ * </pre>
+ * <p>Converting a plain zip file to a password-protected zip file:</p>
+ * <pre>
+ *  FileInputStream src = new FileInputStream(srcFile);
+ *  ZipEncryptOutputStream dest = new ZipEncryptOutputStream(new FileOutputStream(destFile), password);
+ *
+ *  // should wrap with try-catch-finally, do the close in finally
+ *  int b;
+ *  while ((b = src.read()) > -1) {
+ *      dest.write(b);
+ *  }
+ *
+ *  src.close();
+ *  dest.close();
+ * </pre>
  *
  * @author Martin Matula (martin at alutam.com)
  */
@@ -51,10 +74,24 @@ public class ZipEncryptOutputStream extends OutputStream {
 
     private static final int ROW_SIZE = 65536;
 
+    /**
+     * Convenience constructor taking password as a string.
+     *
+     * @param delegate Output stream to write the password-protected zip to.
+     * @param password Password to use for protecting the zip.
+     */
     public ZipEncryptOutputStream(OutputStream delegate, String password) {
         this(delegate, password.toCharArray());
     }
 
+    /**
+     * Safer version of the constructor. Takes password as a char array that can
+     * be nulled right after calling this constructor instead of a string that may
+     * stay visible on the heap for the duration of application run time.
+     *
+     * @param delegate Output stream to write the password-protected zip to.
+     * @param password Password to use for protecting the zip.
+     */
     public ZipEncryptOutputStream(OutputStream delegate, char[] password) {
         this.delegate = delegate;
         pwdKeys[0] = 305419896;
