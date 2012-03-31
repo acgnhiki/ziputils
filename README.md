@@ -2,6 +2,7 @@
 
 Ziputils is a simple library adding support for handling password-protected zip files
 in Java. Right now it contains just two classes:
+
 -   [ZipDecryptInputStream][1] - used for reading password-protected zip files
 -   [ZipEncryptOutputStream][2] - used for writing password-protected zip files
 
