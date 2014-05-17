@@ -4,7 +4,7 @@
   <groupId>com.alutam</groupId>
   <artifactId>ziputils</artifactId>
   <packaging>jar</packaging>
-  <version>1.1-SNAPSHOT</version>
+  <version>1.2-SNAPSHOT</version>
   <name>ziputils</name>
   <url>http://hg.alutam.com/ziputils</url>
     <build>
