@@ -302,7 +302,7 @@ public class ZipEncryptOutputStream extends OutputStream {
             copyBytes = 3;
             state = State.FLAGS;
             if (centralRepoOffset == 0) {
-                centralRepoOffset = bytesWritten - CFH_SIGNATURE.length;
+                centralRepoOffset = bytesWritten;
             }
         } else if (Arrays.equals(buffer, ECD_SIGNATURE)) {
             section = Section.ECD;
