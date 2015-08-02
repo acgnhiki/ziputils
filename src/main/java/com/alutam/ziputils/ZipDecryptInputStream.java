@@ -18,6 +18,7 @@ package com.alutam.ziputils;
 
 import java.io.IOException;
 import java.io.InputStream;
+
 import static com.alutam.ziputils.ZipUtil.*;
 
 /**
@@ -53,6 +54,7 @@ public class ZipDecryptInputStream extends InputStream {
     private final int pwdKeys[] = new int[3];
 
     private State state = State.SIGNATURE;
+    private boolean isEncrypted;
     private Section section;
     private int skipBytes;
     private int compressedSize;
@@ -101,9 +103,7 @@ public class ZipDecryptInputStream extends InputStream {
                     }
                     break;
                 case FLAGS:
-                    if ((result & 1) == 0) {
-                        throw new IllegalStateException("ZIP not password protected.");
-                    }
+                    isEncrypted = (result & 1) != 0;
                     if ((result & 64) == 64) {
                         throw new IllegalStateException("Strong encryption used.");
                     }
@@ -115,7 +115,9 @@ public class ZipDecryptInputStream extends InputStream {
                         state = State.CRC;
                         skipBytes = 10;
                     }
-                    result -= 1;
+                    if (isEncrypted) {
+                        result -= 1;
+                    }
                     break;
                 case CRC:
                     crc = result;
@@ -125,7 +127,7 @@ public class ZipDecryptInputStream extends InputStream {
                     int[] values = new int[4];
                     peekAhead(values);
                     compressedSize = 0;
-                    int valueInc = DECRYPT_HEADER_SIZE;
+                    int valueInc = isEncrypted ? DECRYPT_HEADER_SIZE : 0;
                     for (int i = 0; i < 4; i++) {
                         compressedSize += values[i] << (8 * i);
                         values[i] -= valueInc;
@@ -149,7 +151,14 @@ public class ZipDecryptInputStream extends InputStream {
                     values = new int[4];
                     peekAhead(values);
                     skipBytes = 3 + values[0] + values[2] + (values[1] + values[3]) * 256;
-                    state = State.HEADER;
+                    if (!isEncrypted) {
+                        if (compressedSize > 0) {
+                            throw new IllegalStateException("ZIP not password protected.");
+                        }
+                        state = State.SIGNATURE;
+                    } else {
+                        state = State.HEADER;
+                    }
                     break;
                 case HEADER:
                     section = Section.FILE_DATA;

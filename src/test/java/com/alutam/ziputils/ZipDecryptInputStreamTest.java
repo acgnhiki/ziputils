@@ -16,17 +16,41 @@
 
 package com.alutam.ziputils;
 
-import java.io.InputStream;
+import org.junit.Test;
+
+import java.io.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-import org.junit.Test;
-import static org.junit.Assert.*;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  *
  * @author Martin Matula (martin at alutam.com)
  */
 public class ZipDecryptInputStreamTest {
+    public static void main(String... args) throws IOException {
+        ZipDecryptInputStream zdis = new ZipDecryptInputStream(new FileInputStream(args[0]), args[1]);
+        ZipInputStream zis = new ZipInputStream(zdis);
+        ZipEntry ze;
+        while ((ze = zis.getNextEntry()) != null) {
+            File f = new File(ze.getName());
+            if (ze.isDirectory()) {
+                f.mkdirs();
+            } else {
+                byte[] buffer = new byte[65536];
+                FileOutputStream fo = new FileOutputStream(f);
+                int count;
+                while ((count = zis.read(buffer)) > 0) {
+                    fo.write(buffer, 0, count);
+                }
+                fo.close();
+            }
+            zis.closeEntry();
+        }
+        zis.close();
+    }
+
     /**
      * Test of read method, of class ZipDecryptInputStream.
      */
